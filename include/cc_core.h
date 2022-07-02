@@ -3,6 +3,9 @@
 
 #include "cc_types.h"
 
+#define LF     (cc_char) '\n'
+#define CR     (cc_char) '\r'
+
 typedef struct cc_event_s cc_event_t;
 typedef struct cc_connection_s cc_connection_t;
 typedef struct cc_module_s cc_module_t;

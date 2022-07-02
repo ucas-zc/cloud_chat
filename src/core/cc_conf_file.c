@@ -247,6 +247,218 @@ cc_conf_read_token(cc_conf_t *cf)
 
             n = cc_read_file(&cf->conf_file->file, b->start + len, size,
                              cf->conf_file->file.offset);
+
+            if (n == CC_ERROR) {
+                return CC_ERROR;
+            }
+
+            if (n != size) {
+                // TODO log
+
+                return CC_ERROR;
+            }
+
+            b->pos = b->start + len;
+            b->last = b->pos + n;
+            start = b->start;
+        }
+
+        ch = *b->pos++;
+
+        // 遇到换行符，行数++
+        if (ch == LF) {
+            cf->conf_file->line++;
+
+            if (sharp_comment) {
+                sharp_comment = 0;
+            }
+        }
+
+        // 遇到注释，直接换行
+        if (sharp_comment) {
+            continue;
+        }
+
+        if (quoted) {
+            quoted = 0;
+            continue;
+        }
+
+        // 上一个字符为单引号或者双引号,期待一个分隔符
+        if (need_space) {
+            // 找到分隔符
+            if (ch == ' ' || ch == '\t' || ch == CR || ch == LF) {
+                last_space = 1;
+                need_space = 0;
+                continue;
+            }
+
+            // 一条配置解析结束
+            if (ch == ';') {
+                return CC_OK;
+            }
+
+            // 一条配置解析开始
+            if (ch == '{') {
+                return CC_CONF_BLOCK_START;
+            }
+
+            if (ch == ')') {
+                last_space = 1;
+                need_space = 0;
+
+            } else {
+                // TODO log
+                return CC_ERROR;
+            }
+        }
+
+        if (last_space) {
+            start = b->pos - 1;
+            start_line = cf->conf_file->line;
+
+            // 两个分割token的字符相邻,依旧表示一个间隔符.
+            if (ch == ' ' || ch == '\t' || ch == CR || ch == LF) {
+                continue;
+            }
+
+            switch (ch) {
+            case ';':
+            case '{':
+                if (cf->args->nelts == 0) {
+                    // TODO log
+                    return CC_ERROR;
+                }
+
+                if (ch == '{') {
+                    return CC_CONF_BLOCK_START;
+                }
+
+                return CC_OK;
+            case '}':
+                if (cf->args->nelts != 0) {
+                    // TODO log
+                    return CC_ERROR;
+                }
+
+                return CC_CONF_BLOCK_DONE;
+            case '#':
+                sharp_comment = 1;
+                continue;
+            case '\\':
+                quoted = 1;
+                last_space = 0;
+                continue;
+            case '"':
+                start++;
+                d_quoted = 1;
+                last_space = 0;
+                continue;
+            case '\'':
+                start++;
+                s_quoted = 1;
+                last_space = 0;
+                continue;
+            case '$':
+                variable = 1;
+                last_space = 0;
+                continue;
+            default:
+                last_space = 0;
+            }
+
+        } else {
+            if (ch == '{' && variable) {
+                continue;
+            }
+
+            variable = 0;
+
+            if (ch == '\\') {
+                quoted = 1;
+                continue;
+            }
+
+            // 变量标志位标1
+            if (ch == '$') {
+                variable = 1;
+                continue;
+            }
+
+            if (d_quoted) {
+                // 已经找到成对双引号,期望一个间隔符
+                if (ch == '"') {
+                    d_quoted = 0;
+                    need_space = 1;
+                    found = 1;
+                }
+            } else if (s_quoted) {
+                // 已经找到成对单引号,期望一个间隔符
+                if (ch == '\'') {
+                    s_quoted = 0;
+                    need_space = 1;
+                    found = 1;
+                }
+            } else if (ch == ' ' || ch == '\t' || ch == CR || ch == LF
+                       || ch == ';' || ch == '{')
+            {
+                last_space = 1;
+                found = 1;
+            }
+
+            // 找到一个token
+            if (found) {
+                word = cc_array_push(cf->args);
+                if (word == NULL) {
+                    return CC_ERROR;
+                }
+
+                word->data = cc_malloc(b->pos - 1 - start + 1);
+                if (word->data == NULL) {
+                    return CC_ERROR;
+                }
+
+                for (dst = word->data, src = start, len = 0;
+                        src < b->pos - 1; len++)
+                {
+                    if (*src == '\\') {
+                        switch (src[1]) {
+                        case '"':
+                        case '\'':
+                        case '\\':
+                            src++;
+                            break;
+                        case 't':
+                            *dst++ = '\t';
+                            src += 2;
+                            continue;
+                        case 'r':
+                            *dst++ = '\r';
+                            src += 2;
+                            continue;
+                        case 'n':
+                            *dst++ = '\n';
+                            src += 2;
+                            continue;
+                        }
+                    }
+
+                    *dst++ = *src++;
+                }
+
+                *dst = '\0';
+                word->len = len;
+
+                if (ch == ';') {
+                    return CC_OK;
+                }
+
+                if (ch == '{') {
+                    return CC_CONF_BLOCK_START;
+                }
+
+                found = 0;
+            }
         }
     }
 
@@ -256,5 +468,40 @@ cc_conf_read_token(cc_conf_t *cf)
 static cc_in32
 cc_conf_handler(cc_conf_t *cf, cc_in32 last)
 {
+    cc_char           *rv;
+    void           *conf, **confp;
+    cc_uin32      i, found;
+    cc_str_t      *name;
+    cc_command_t  *cmd;
+
+    name = cf->args->elts;
+
+    found = 0;
+
+    for (i = 0; cf->cycle->modules[i]; i++) {
+        cmd = cf->cycle->modules[i]->commands;
+        if (cmd == NULL) {
+            continue;
+        }
+
+        for ( /* void */ ; cmd->name.len; cmd++) {
+            if (name->len != cmd->name.len) {
+                continue;
+            }
+
+            if (cc_strcmp(name->data, cmd->name.data) != 0) {
+                continue;
+            }
+
+            found = 1;
+
+            if (cf->cycle->modules[i]->type != CC_CONF_MODULE
+                && cf->cycle->modules[i]->type != cf->module_type)
+            {
+                continue;
+            }
+        }
+    }
+
     return CC_ERROR;
 }

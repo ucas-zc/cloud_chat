@@ -2,6 +2,7 @@
 #define __CC_SHMTX_H__
 
 #include "cc_types.h"
+#include "cc_files.h"
 
 typedef struct 
 {

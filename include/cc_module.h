@@ -19,6 +19,7 @@ struct cc_module_s
     cc_char *name;
     // 模块上下文
     void *ctx;
+    cc_command_t *commands;
     // 模块类型
     cc_in32 type;
     // 初始化模块接口

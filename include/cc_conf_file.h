@@ -7,9 +7,13 @@
 #include "cc_buf.h"
 #include "cc_log.h"
 #include "cc_array.h"
+#include "cc_cycle.h"
+#include "cc_module.h"
 
 #define CC_CONF_OK NULL
 #define CC_CONF_ERROR (void*) -1
+
+#define CC_CONF_MODULE      0x464E4F43  /* "CONF" */
 
 #define CC_CONF_BLOCK_START 1
 #define CC_CONF_BLOCK_DONE  2
@@ -20,6 +24,8 @@ typedef char *(*cc_conf_handler_pt)(cc_conf_t *cf,
 
 struct cc_command_s
 {
+    cc_str_t             name;
+    cc_uin32             type;
 };
 
 typedef struct cc_conf_file_s
@@ -32,8 +38,10 @@ typedef struct cc_conf_file_s
 struct cc_conf_s
 {
     cc_array_t *args;
+    cc_cycle_t *cycle;
     cc_conf_file_t *conf_file;
     cc_log_t *log;
+    cc_uin32 module_type;
     cc_conf_handler_pt handler;
     void *handler_conf;
 };

@@ -1,9 +1,9 @@
 #ifndef _GTEST_
 
 #include "cc_daemon.h"
-#include "cc_cycle.h"
 #include "cc_process.h"
 #include "cloud_chat.h"
+#include "cc_module.h"
 
 /** 全局变量 **/
 static cc_in32 cc_show_version;

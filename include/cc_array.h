@@ -5,7 +5,10 @@
 
 typedef struct cc_array_s
 {
-    cc_uin32 nelts;
+    void        *elts;
+    cc_uin32    nelts;
 }cc_array_t;
+
+void *cc_array_push(cc_array_t *a);
 
 #endif

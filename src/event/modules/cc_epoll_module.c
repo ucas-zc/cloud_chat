@@ -22,6 +22,7 @@ cc_module_t cc_epoll_module = {
 	CC_MODULE_EPOLL,
     "cc_epoll_module",
     &cc_epoll_module_ctx,
+    NULL, // TODO
     CC_EVENT_MODULE,
     NULL
 };

@@ -1,7 +1,7 @@
 #ifndef __CC_FILES_H__
 #define __CC_FILES_H__
 
-#include "cc_types.h"
+#include "cc_core.h"
 #include "cc_config.h"
 #include "cc_mem.h"
 #include <sys/types.h>
@@ -34,6 +34,8 @@ typedef struct stat cc_file_info_t;
 
 cc_in32 cc_trylock_fd(cc_fd_t fd);
 cc_in32 cc_unlock_fd(cc_fd_t fd);
+ssize_t cc_read_file(cc_file_t *file, cc_char *buf, 
+    size_t size, off_t offset);
 
 static cc_inline ssize_t
 cc_write_fd(cc_fd_t fd, void *buf, size_t len)

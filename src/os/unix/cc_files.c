@@ -33,3 +33,10 @@ cc_unlock_fd(cc_fd_t fd)
 
     return 0;
 }
+
+// 读取文件
+ssize_t
+cc_read_file(cc_file_t *file, cc_char *buf, size_t size, off_t offset)
+{
+    
+}

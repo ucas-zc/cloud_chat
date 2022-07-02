@@ -3,6 +3,7 @@
 
 #include "cc_core.h"
 #include "cc_log.h"
+#include "cc_times.h"
 
 struct cc_cycle_s
 {
@@ -18,5 +19,7 @@ struct cc_cycle_s
     cc_in32 connection_n;                     // 当前进程可连接总数
     cc_cycle_t *old_cycle;                    // 旧的cc_cycle_t
 };
+
+cc_cycle_t * cc_init_cycle(cc_cycle_t *old_cycle);
 
 #endif
