@@ -5,6 +5,17 @@
 static cc_in32 cc_conf_read_token(cc_conf_t *cf);
 static cc_in32 cc_conf_handler(cc_conf_t *cf, cc_in32 last);
 
+static cc_uin32 argument_number[] = {
+    CC_CONF_NOARGS,
+    CC_CONF_TAKE1,
+    CC_CONF_TAKE2,
+    CC_CONF_TAKE3,
+    CC_CONF_TAKE4,
+    CC_CONF_TAKE5,
+    CC_CONF_TAKE6,
+    CC_CONF_TAKE7
+};
+
 // 配置解析
 cc_char *
 cc_conf_parse(cc_conf_t *cf, cc_str_t *filename)
@@ -468,11 +479,11 @@ cc_conf_read_token(cc_conf_t *cf)
 static cc_in32
 cc_conf_handler(cc_conf_t *cf, cc_in32 last)
 {
-    cc_char           *rv;
-    void           *conf, **confp;
-    cc_uin32      i, found;
-    cc_str_t      *name;
-    cc_command_t  *cmd;
+    cc_char         *rv;
+    void            *conf, **confp;
+    cc_uin32        i, found;
+    cc_str_t        *name;
+    cc_command_t    *cmd;
 
     name = cf->args->elts;
 
@@ -500,8 +511,87 @@ cc_conf_handler(cc_conf_t *cf, cc_in32 last)
             {
                 continue;
             }
+
+            if (!(cmd->type & cf->cmd_type)) {
+                continue;
+            }
+
+            if (!(cmd->type & CC_CONF_BLOCK) && last != CC_OK) {
+                // TODO log
+                return CC_ERROR;
+            }
+
+            if ((cmd->type & CC_CONF_BLOCK) 
+                && last != CC_CONF_BLOCK_START) {
+                // TODO log
+                return CC_ERROR;
+                
+            }
+
+            // 判断配置属性是否正确
+            if (!(cmd->type & CC_CONF_ANY)) {
+
+                if (cmd->type & CC_CONF_FLAG) {
+                    if (cf->args->nelts != 2) {
+                        goto invalid;
+                    }
+
+                } else if (cmd->type & CC_CONF_1MORE) {
+                    if (cf->args->nelts < 2) {
+                        goto invalid;
+                    }
+
+                } else if (cmd->type & CC_CONF_2MORE) {
+                    if (cf->args->nelts < 3) {
+                        goto invalid;
+                    }
+
+                } else if (cf->args->nelts > CC_CONF_MAX_ARGS) {
+                    goto invalid;
+
+                } else if (!(cmd->type & argument_number[cf->args->nelts - 1])) {
+                    goto invalid;
+
+                }
+            }
+
+            // 设置DIRE配置值、MAIN配置值等
+            conf = NULL;
+            if (cmd->type & CC_DIRECT_CONF) {
+                conf = ((void **) cf->ctx)[cf->cycle->modules[i]->index];
+
+            } else if (cmd->type & CC_MAIN_CONF) {
+                conf = &(((void **) cf->ctx)[cf->cycle->modules[i]->index]);
+
+            } else if (cf->ctx) {
+                goto invalid;
+
+            }
+
+            rv = cmd->set(cf, cmd, conf);
+
+            if (rv == CC_CONF_OK) {
+                return CC_OK;
+            }
+
+            if (rv == CC_CONF_ERROR) {
+                return CC_ERROR;
+            }
+
+            // TODO log
+            return CC_ERROR;
         }
     }
 
+    if (found) {
+        // TODO log
+        return CC_ERROR;
+    }
+
+    // TODO log
+    return CC_ERROR;
+
+invalid:
+    // TODO log
     return CC_ERROR;
 }

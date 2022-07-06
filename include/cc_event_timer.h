@@ -48,7 +48,7 @@ cc_event_add_timer(cc_event_t *ev, cc_msec_t timer)
     }
 
     ev->timer.key = key;
-    cc_event_rbtree_insert(&cc_event_timer_rbtree, &ev->timer);
+    cc_rbtree_insert(&cc_event_timer_rbtree, &ev->timer);
     ev->timer_set = 1;
 }
 

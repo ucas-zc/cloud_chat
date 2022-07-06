@@ -1,4 +1,6 @@
 #include "cc_event.h"
+#include "cc_event_timer.h"
+#include "cc_event_accept.h"
 
 // 时间精度
 cc_uin32 cc_timer_resolution;
